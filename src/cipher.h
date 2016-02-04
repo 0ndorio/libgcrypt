@@ -43,6 +43,12 @@
 #define PUBKEY_FLAG_NO_KEYTEST     (1 << 14)
 #define PUBKEY_FLAG_DJB_TWEAK      (1 << 15)
 
+/* Adds new flags to show that a specific verification algorithm is necessary
+ * Easiest way to inject them is here but to num of flags is limited so another
+ * implementation is necessary for future growth.
+ */
+#define PUBKEY_FLAG_ECDSA_BUTUN   (1 << 16)
+
 
 enum pk_operation
   {

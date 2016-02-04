@@ -428,6 +428,8 @@ _gcry_pk_util_preparse_sigval (gcry_sexp_t s_sig, const char **algo_names,
         *r_eccflags = PUBKEY_FLAG_EDDSA;
       if (!strcmp (name, "gost"))
         *r_eccflags = PUBKEY_FLAG_GOST;
+      if (!strcmp (name, "butun"))
+        *r_eccflags = PUBKEY_FLAG_ECDSA_BUTUN;
     }
 
   *r_parms = l2;

@@ -64,6 +64,7 @@
 
 static const char *ecc_names[] =
   {
+    "butun",
     "ecc",
     "ecdsa",
     "ecdh",
@@ -1068,9 +1069,11 @@ ecc_verify (gcry_sexp_t s_sig, gcry_sexp_t s_data, gcry_sexp_t s_keyparms)
       if (rc)
         goto leave;
     }
+
   /* Add missing parameters using the optional curve parameter.  */
   sexp_release (l1);
   l1 = sexp_find_token (s_keyparms, "curve", 5);
+
   if (l1)
     {
       curvename = sexp_nth_string (l1, 1);
@@ -1132,6 +1135,15 @@ ecc_verify (gcry_sexp_t s_sig, gcry_sexp_t s_data, gcry_sexp_t s_keyparms)
         goto leave;
 
       rc = _gcry_ecc_gost_verify (data, &pk, sig_r, sig_s);
+    }
+  else if ((sigflags & PUBKEY_FLAG_ECDSA_BUTUN))
+    {
+      point_init (&pk.Q);
+      rc = _gcry_ecc_os2ec (&pk.Q, mpi_q);
+      if (rc)
+        goto leave;
+
+      rc = _gcry_ecc_ecdsa_butun_verify (data, &pk, sig_r, sig_s);
     }
   else
     {

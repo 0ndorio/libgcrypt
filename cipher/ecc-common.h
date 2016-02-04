@@ -103,6 +103,9 @@ gpg_err_code_t _gcry_ecc_ecdsa_sign (gcry_mpi_t input, ECC_secret_key *skey,
 gpg_err_code_t _gcry_ecc_ecdsa_verify (gcry_mpi_t input, ECC_public_key *pkey,
                                        gcry_mpi_t r, gcry_mpi_t s);
 
+gpg_err_code_t _gcry_ecc_ecdsa_butun_verify (gcry_mpi_t input, ECC_public_key *pkey,
+                                             gcry_mpi_t r, gcry_mpi_t s);
+
 /*-- ecc-eddsa.c --*/
 gpg_err_code_t _gcry_ecc_eddsa_recover_x (gcry_mpi_t x, gcry_mpi_t y, int sign,
                                           mpi_ec_t ec);

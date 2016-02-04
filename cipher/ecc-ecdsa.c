@@ -232,3 +232,110 @@ _gcry_ecc_ecdsa_verify (gcry_mpi_t input, ECC_public_key *pkey,
 
   return err;
 }
+
+/* Verify an ECDSA based Butun blind signature.
+ * Check if R and S verifies INPUT.
+ */
+gpg_err_code_t
+_gcry_ecc_ecdsa_butun_verify (gcry_mpi_t input, ECC_public_key *pkey,
+                              gcry_mpi_t r, gcry_mpi_t s)
+{
+  gcry_mpi_t hash, x, x1, x2, y1, y2;
+  gpg_err_code_t err;
+  mpi_ec_t ctx;
+  mpi_point_struct S, S1, S2, u1, u2;
+
+  ctx = _gcry_mpi_ec_p_internal_new (pkey->E.model, pkey->E.dialect, 0,
+                                     pkey->E.p, pkey->E.a, pkey->E.b);
+
+  point_init(&S);
+  err = _gcry_mpi_ec_decode_point(&S, s, ctx);
+
+  /* Assertion S on curve failed.  */
+  if( !(_gcry_mpi_ec_curve_point(&S, ctx))) {
+    err = GPG_ERR_BAD_SIGNATURE;
+    goto leave;
+  }
+
+  /* Assertion	0 < r < n  failed.  */
+  if( !(mpi_cmp_ui (r, 0) > 0 && mpi_cmp (r, pkey->E.n) < 0) ) {
+    err = GPG_ERR_BAD_SIGNATURE;
+    goto leave;
+  }
+
+  unsigned int nbits = mpi_get_nbits (pkey->E.n);
+
+  err = _gcry_dsa_normalize_hash (input, &hash, nbits);
+  if (err) goto leave;
+
+  x = mpi_alloc (0);
+  if (_gcry_mpi_ec_get_affine (x, NULL, &S, ctx)) {
+
+    if (DBG_CIPHER) log_debug ("ecc verify: Failed to get affine coordinates\n");
+
+    err = GPG_ERR_BAD_SIGNATURE;
+    goto leave;
+  }
+
+  /* x = x mod E_n */
+  mpi_mod (x, x, pkey->E.n);
+
+  point_init (&S1);
+  point_init (&S2);
+  point_init (&u1);
+  point_init (&u2);
+
+  /* u1 = rG  */
+  _gcry_mpi_ec_mul_point (&u1, r, &pkey->E.G, ctx);
+
+  /* S1 = hashS */
+  _gcry_mpi_ec_mul_point (&S1, hash, &S, ctx);
+
+  /* S2 = xQ */
+  _gcry_mpi_ec_mul_point (&S2, x, &pkey->Q, ctx);
+
+  /* u2 = hashS + xQ */
+  _gcry_mpi_ec_add_points (&u2, &S1, &S2, ctx);
+
+  if(!(_gcry_mpi_ec_curve_point(&u1, ctx) || _gcry_mpi_ec_curve_point(&u2, ctx))) {
+
+    if (DBG_CIPHER) log_debug ("ecc verify: Rejected\n");
+
+    err = GPG_ERR_BAD_SIGNATURE;
+    goto leave;
+  }
+
+  x1 = mpi_alloc (0);
+  x2 = mpi_alloc (0);
+  y1 = mpi_alloc (0);
+  y2 = mpi_alloc (0);
+  _gcry_mpi_ec_get_affine (x1, y1, &u1, ctx);
+  _gcry_mpi_ec_get_affine (x2, y2, &u2, ctx);
+
+  /* u1 != u2 */
+  if (_gcry_mpi_cmp (x1, x2) || _gcry_mpi_cmp (y1, y2)) {
+    if (DBG_CIPHER) {
+      log_mpidump ("    u1: x", x1);
+      log_mpidump ("    u1: y", y1);
+      log_mpidump ("    u2: x", x2);
+      log_mpidump ("    u2: y", y2);
+    }
+    err = GPG_ERR_BAD_SIGNATURE;
+  }
+
+leave:
+  _gcry_mpi_ec_free (ctx);
+  point_free (&S2);
+  point_free (&S1);
+  point_free (&S);
+  point_free (&u2);
+  point_free (&u1);
+  mpi_free (x);
+  mpi_free (x1);
+  mpi_free (x2);
+  mpi_free (y1);
+  mpi_free (y2);
+  if (hash != input) mpi_free(hash);
+
+  return err;
+}
